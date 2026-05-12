@@ -939,7 +939,12 @@ function renderSchedules(){
 
     var startBtn='';
     if((status==='upcoming'||status==='active')&&!isBreak){
-      startBtn='<button class="btn-sched-start" onclick='startScheduledSession('+JSON.stringify(sc).replace(/'/g,"&#39;")+')'>▶</button>';
+      var scJson=JSON.stringify(sc).replace(/\\/g,'\\\\').replace(/"/g,'&quot;');
+      startBtn='<button class="btn-sched-start" onclick="startScheduledSession(JSON.parse(this.dataset.sc));" data-sc="'+scJson+'">▶</button>';
+    }
+    if(isBreak&&(status==='upcoming'||status==='active')){
+      var scJson=JSON.stringify(sc).replace(/\\/g,'\\\\').replace(/"/g,'&quot;');
+      startBtn='<button class="btn-sched-start" style="background:linear-gradient(135deg,#6b4820,#a07040)" onclick="startScheduledSession(JSON.parse(this.dataset.sc));" data-sc="'+scJson+'">☕</button>';
     }
 
     return '<div class="sched-item'+activeClass+upcomingClass+breakClass+'">'
@@ -1909,7 +1914,7 @@ window.addEventListener('appinstalled',()=>{installBar.style.display='none';});
     try{var ctx=new(window.AudioContext||window.webkitAudioContext)();[523,440,330].forEach(function(f,i){var o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(0,ctx.currentTime+i*0.14);g.gain.linearRampToValueAtTime(0.2,ctx.currentTime+i*0.14+0.02);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+i*0.14+0.4);o.start(ctx.currentTime+i*0.14);o.stop(ctx.currentTime+i*0.14+0.4);});}catch(e){}
   }
 
-  function startBreak(durationSec){
+  function startBreak(durationSec, onEndCallback){
     breakActive=true;
     breakEnd=Date.now()+durationSec*1000;
     var banner=document.getElementById('break-banner');
@@ -1921,7 +1926,7 @@ window.addEventListener('appinstalled',()=>{installBar.style.display='none';});
       var m=Math.floor(rem/60),s=rem%60;
       var disp=document.getElementById('break-timer-display');
       if(disp)disp.textContent=m+':'+(s<10?'0':'')+s;
-      if(rem===0){endBreak();}
+      if(rem===0){window.endBreak();}
     },500);
   }
 
@@ -1937,6 +1942,46 @@ window.addEventListener('appinstalled',()=>{installBar.style.display='none';});
     t.style.cssText='position:fixed;top:70px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#0a3d1e,#1D9E75);color:#c8f5e0;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:99999;white-space:nowrap;box-shadow:0 4px 20px rgba(29,158,117,.4)';
     document.body.appendChild(t);
     setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},3000);
+
+    // Auto-start next schedule after break ends
+    setTimeout(function(){
+      var arr=typeof loadSchedules==='function'?loadSchedules():[];
+      var now=new Date();
+      var today=todayKey();
+      // Find next upcoming or currently active study schedule
+      var nextStudy=null;
+      arr.forEach(function(sc){
+        if(sc.isBreak)return;
+        if(sc.date!==today)return;
+        var parts=sc.startTime.split(':');
+        var startDt=new Date();
+        startDt.setHours(parseInt(parts[0]),parseInt(parts[1]),0,0);
+        var endDt=new Date(startDt.getTime()+sc.duration*1000);
+        // Find schedules that start now or within 3 minutes, or are currently active
+        var diff=startDt-now;
+        if(endDt>now && diff<=180000){
+          if(!nextStudy){nextStudy=sc;}
+          else{
+            // Pick the soonest one
+            var p2=nextStudy.startTime.split(':');
+            var s2=new Date();s2.setHours(parseInt(p2[0]),parseInt(p2[1]),0,0);
+            if(startDt<s2)nextStudy=sc;
+          }
+        }
+      });
+      if(nextStudy&&!running){
+        // Show prompt toast
+        var nt=document.createElement('div');
+        nt.style.cssText='position:fixed;top:70px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#1D9E75,#0F6E56);color:#fff;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;z-index:99999;white-space:nowrap;box-shadow:0 4px 20px rgba(29,158,117,.5);display:flex;align-items:center;gap:10px';
+        nt.innerHTML='⏰ <span>Starting next: <b>'+nextStudy.subject+'</b></span>';
+        document.body.appendChild(nt);
+        setTimeout(function(){if(nt.parentNode)nt.parentNode.removeChild(nt);},4000);
+        // Auto-start after 1.5s
+        setTimeout(function(){
+          if(!running)startScheduledSession(nextStudy);
+        },1500);
+      }
+    },500);
   };
 
   // Hook into startScheduledSession for break schedules
