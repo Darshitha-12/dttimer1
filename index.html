@@ -1128,13 +1128,28 @@ function renderSchedules(){
 setInterval(renderSchedules,1000);
 renderSchedules();
 
-// ── AUTO START / STOP SCHEDULES ──
-// Tracks which schedules have been auto-triggered this session
-var _autoStarted={};  // id → true when started
-var _autoStopped={};  // id → true when stopped
+// ══ AUTO START / STOP SCHEDULES ══
+// Tracks which schedules have been auto-triggered — persisted in localStorage per day
+// so even if the page reloads mid-day we don't double-start.
+
+function _autoKey(){ return 'auto_sched_'+todayKey(); }
+function _loadAutoState(){
+  try{ return JSON.parse(localStorage.getItem(_autoKey())||'{}'); }catch(e){ return {}; }
+}
+function _saveAutoState(obj){
+  try{ localStorage.setItem(_autoKey(),JSON.stringify(obj)); }catch(e){}
+}
+// Clean up old day keys
+(function(){
+  var td=todayKey();
+  for(var k in localStorage){
+    if(k.startsWith('auto_sched_')&&!k.endsWith(td)){
+      try{localStorage.removeItem(k);}catch(e){}
+    }
+  }
+})();
 
 function playScheduleAlert(type){
-  // type: 'start' = rising tones, 'stop' = falling tones
   try{
     var ctx=new(window.AudioContext||window.webkitAudioContext)();
     var freqs=type==='start'?[440,550,660,880,1100]:[880,660,550,440,330];
@@ -1151,62 +1166,114 @@ function playScheduleAlert(type){
   }catch(e){}
 }
 
+// Countdown overlay shown before auto-start (5s warning)
+var _autoCountdownTimer=null;
+function showAutoCountdown(sc,onConfirm,onCancel){
+  // Remove existing
+  var old=document.getElementById('auto-countdown-banner');
+  if(old)old.remove();
+  clearInterval(_autoCountdownTimer);
+
+  var secs=5;
+  var banner=document.createElement('div');
+  banner.id='auto-countdown-banner';
+  banner.style.cssText='position:fixed;top:60px;left:50%;transform:translateX(-50%);'
+    +'background:linear-gradient(135deg,#0a3d1e,#1D9E75);color:#fff;padding:12px 20px 12px 16px;'
+    +'border-radius:13px;font-size:13px;font-weight:600;z-index:99999;white-space:nowrap;'
+    +'box-shadow:0 4px 24px rgba(0,0,0,.5);display:flex;align-items:center;gap:12px;'
+    +'border:1px solid rgba(93,202,165,.4);animation:slideUp2 .3s ease';
+  banner.innerHTML='<span id="acd-txt">▶ Auto-starting <b>'+escHtml(sc.isBreak?'Break':sc.subject)+'</b> in <b id="acd-num">5</b>s</span>'
+    +'<button id="acd-skip" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:7px;padding:4px 10px;color:#fff;font-size:11px;cursor:pointer;font-family:inherit">Skip</button>';
+  document.body.appendChild(banner);
+
+  function tick(){
+    var el=document.getElementById('acd-num');
+    if(el)el.textContent=secs;
+    if(secs<=0){
+      clearInterval(_autoCountdownTimer);
+      var b=document.getElementById('auto-countdown-banner');
+      if(b)b.remove();
+      onConfirm();
+    }
+    secs--;
+  }
+  tick();
+  _autoCountdownTimer=setInterval(tick,1000);
+
+  var skipBtn=document.getElementById('acd-skip');
+  if(skipBtn)skipBtn.onclick=function(){
+    clearInterval(_autoCountdownTimer);
+    var b=document.getElementById('auto-countdown-banner');
+    if(b)b.remove();
+    onCancel();
+  };
+}
+
 setInterval(function(){
   var arr=loadSchedules();
   var now=new Date();
   var td=todayKey();
+  var state=_loadAutoState();
 
   arr.forEach(function(sc){
     if(sc.date!==td)return;
+
     var parts=sc.startTime.split(':');
     var startDt=new Date();
     startDt.setHours(parseInt(parts[0]),parseInt(parts[1]),0,0);
     var endDt=new Date(startDt.getTime()+sc.duration*1000);
-    var msToStart=startDt-now;
-    var msToEnd=endDt-now;
+    var msToStart=startDt-now;   // negative = already past start
+    var msToEnd  =endDt  -now;   // negative = already past end
 
-    // ── AUTO START: within 30s of start time, page visible, not already running ──
-    if(!_autoStarted[sc.id]&&msToStart>-30000&&msToStart<=0&&msToEnd>0&&!document.hidden){
-      _autoStarted[sc.id]=true;
+    // ── AUTO START ──
+    // Window: from -5 minutes before start up to end (catches late page opens too)
+    var startWindowMs=5*60*1000;
+    if(!state['started_'+sc.id]&&msToStart>-startWindowMs&&msToStart<=0&&msToEnd>0){
+      state['started_'+sc.id]=true;
+      _saveAutoState(state);
 
       if(sc.isBreak){
-        // Start break countdown
         if(typeof startBreak==='function'&&!breakActive){
           playScheduleAlert('start');
-          startBreak(sc.duration);
-          showAutoToast('☕ Break started — '+Math.floor(sc.duration/60)+'m','#a07040','#c9a84c');
+          showAutoCountdown(sc,
+            function(){ startBreak(sc.duration); showAutoToast('☕ Break started — '+Math.floor(sc.duration/60)+'m','#a07040','#c9a84c'); },
+            function(){ showAutoToast('⏭ Break auto-start skipped','#444','#666'); }
+          );
         }
       } else {
-        // Start study session
         if(!running){
           playScheduleAlert('start');
-          startScheduledSession(sc);
-          showAutoToast('▶ Auto-started: '+sc.subject+' · '+fmtSec(sc.duration),'#0F6E56','#1D9E75');
+          showAutoCountdown(sc,
+            function(){ startScheduledSession(sc); showAutoToast('▶ Auto-started: '+sc.subject+' · '+fmtSec(sc.duration),'#0F6E56','#1D9E75'); },
+            function(){ showAutoToast('⏭ Auto-start skipped: '+sc.subject,'#444','#666'); }
+          );
         }
       }
     }
 
-    // ── AUTO STOP: within 30s after end time, timer still running for this subject ──
-    if(!_autoStopped[sc.id]&&msToEnd<30000&&msToEnd>-30000&&msToEnd<=0){
-      _autoStopped[sc.id]=true;
+    // ── AUTO STOP ──
+    // Window: from end time up to +5 minutes (saves even if check was slightly late)
+    var stopWindowMs=5*60*1000;
+    if(!state['stopped_'+sc.id]&&msToEnd<=0&&msToEnd>-stopWindowMs){
+      state['stopped_'+sc.id]=true;
+      _saveAutoState(state);
 
       if(sc.isBreak){
-        // End break
         if(typeof breakActive!=='undefined'&&breakActive&&typeof endBreak==='function'){
           playScheduleAlert('stop');
           endBreak();
+          showAutoToast('✅ Break ended!','#6b4820','#a07040');
         }
       } else {
-        // Save study session if running
         if(running){
           playScheduleAlert('stop');
           saveSession();
-          showAutoToast('⏹ Auto-saved: '+sc.subject,'#0F6E56','#1D9E75');
+          showAutoToast('✅ Session saved: '+sc.subject+' · '+fmtSec(sc.duration),'#0F6E56','#1D9E75');
         }
       }
     }
   });
-},5000); // check every 5 seconds
+},3000); // check every 3 seconds for better precision
 
 function showAutoToast(msg,c1,c2){
   var t=document.createElement('div');
