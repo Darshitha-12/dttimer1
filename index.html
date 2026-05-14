@@ -80,10 +80,27 @@ html::before{content:'';position:fixed;top:0;left:0;right:0;height:2px;z-index:9
   50%{box-shadow:0 0 0 2px rgba(29,158,117,.3),0 4px 20px rgba(29,158,117,.2)}
 }
 .sched-item-break {
+  border-color: rgba(160,112,64,.4) !important;
+  background: rgba(160,112,64,.07) !important;
+  animation: none !important;
+}
+.sched-item-break::before { background: linear-gradient(180deg,#a07040,#c9a84c) !important; box-shadow:0 0 6px rgba(201,168,76,.3) !important; }
+/* Break active - amber glow only */
+.sched-item-break.sched-item-active {
+  border-color: rgba(201,168,76,.5) !important;
+  background: rgba(160,112,64,.12) !important;
+  animation: breakActivePulse 1.8s ease-in-out infinite !important;
+}
+@keyframes breakActivePulse {
+  0%,100%{box-shadow:0 0 0 1px rgba(201,168,76,.15),0 2px 10px rgba(201,168,76,.1)}
+  50%{box-shadow:0 0 0 2px rgba(201,168,76,.3),0 4px 20px rgba(201,168,76,.18)}
+}
+/* Break upcoming */
+.sched-item-break.sched-item-upcoming {
   border-color: rgba(160,112,64,.3) !important;
   background: rgba(160,112,64,.06) !important;
+  animation: none !important;
 }
-.sched-item-break::before { background: linear-gradient(180deg,#a07040,#c9a84c) !important; }
 
 .sched-item-left {
   display:flex;flex-direction:column;align-items:center;min-width:44px;flex-shrink:0;
@@ -170,6 +187,29 @@ html::before{content:'';position:fixed;top:0;left:0;right:0;height:2px;z-index:9
 
 /* Unit hint */
 #sc-unit-hint {font-size:10px;color:rgba(255,255,255,.3);margin-top:3px;min-height:14px;}
+
+/* ── SCHEDULE DATE FILTER CHIPS ── */
+.sched-date-chips{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;}
+.sched-date-chip{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:4px 11px;font-size:11px;color:rgba(255,255,255,.45);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;}
+.sched-date-chip.active{background:rgba(127,119,221,.18);border-color:rgba(127,119,221,.45);color:#a8a3e8;}
+
+/* ── SESSIONS CARD VIEW ── */
+.session-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:8px;}
+.sess-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:.75rem .85rem;display:flex;flex-direction:column;gap:5px;transition:border-color .15s,transform .1s;}
+.sess-card:hover{border-color:rgba(255,255,255,.15);transform:translateY(-1px);}
+.sess-card-subj{font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;align-self:flex-start;}
+.sess-card-dur{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:#f0f0f0;line-height:1;}
+.sess-card-cat{font-size:11px;color:rgba(255,255,255,.4);}
+.sess-card-meta{font-size:10px;color:rgba(255,255,255,.25);}
+.view-toggle-btn{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:7px;padding:4px 9px;font-size:11px;color:rgba(255,255,255,.4);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;}
+.view-toggle-btn.active{background:rgba(29,158,117,.15);border-color:rgba(29,158,117,.35);color:#5DCAA5;}
+
+/* ── MOOD / NOTES ADD ── */
+.mood-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
+.mood-chip{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:99px;padding:4px 11px;font-size:12px;cursor:pointer;transition:all .12s;color:rgba(255,255,255,.6);font-family:'DM Sans',sans-serif;}
+.mood-chip.selected{background:rgba(29,158,117,.18);border-color:rgba(29,158,117,.45);color:#5DCAA5;}
+.mood-note-input{width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:7px 10px;font-size:12px;color:#f0f0f0;font-family:'DM Sans',sans-serif;outline:none;resize:none;margin-top:6px;}
+.mood-note-input:focus{border-color:rgba(29,158,117,.4);}
 
 #fc-bubble,#fc-popup{display:none !important;}
 #edge-chat-tab{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:8999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:linear-gradient(180deg,#0a3d1e,#1D9E75);border-radius:12px 0 0 12px;padding:12px 7px;cursor:pointer;box-shadow:-2px 0 16px rgba(29,158,117,.25);user-select:none;}
@@ -628,7 +668,7 @@ body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);min
   <div class="control-panel">
     <div class="panel-card">
       <div class="panel-label">Subject</div>
-      <select class="panel-select" id="subj" onchange="toggleOther(this)">
+      <select class="panel-select" id="subj" onchange="onSubjectChange(this)">
         <option value="Biology">Biology</option>
         <option value="Chemistry">Chemistry</option>
         <option value="Physics">Physics</option>
@@ -646,7 +686,8 @@ body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);min
         <option value="Practice">Practice</option>
         <option value="Reading">Reading</option>
       </select>
-      <button class="btn" onclick="openManualModal()" style="background:linear-gradient(135deg,#378ADD,#185FA5);margin-top:8px;width:100%;font-size:11px;padding:7px">+ Add manually</button>
+      <button class="btn" style="background:linear-gradient(135deg,#2d5a1e,#1D9E75);margin-top:8px;width:100%;font-size:11px;padding:7px" onclick="toggleMoodPanel()">🌿 Add mood / note</button>
+      <button class="btn" onclick="openManualModal()" style="background:linear-gradient(135deg,#378ADD,#185FA5);margin-top:6px;width:100%;font-size:11px;padding:7px">+ Add manually</button>
     </div>
     <div class="panel-card timer-panel">
       <div class="status-pill pill-stopped" id="status-pill">
@@ -682,11 +723,31 @@ body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);min
     </div>
   </div>
 
+  <!-- MOOD / NOTES PANEL (shown before start) -->
+  <div id="mood-panel" style="background:rgba(6,18,10,.7);border:1px solid rgba(29,100,55,.25);border-radius:12px;padding:.8rem 1rem;margin-bottom:.75rem;display:none">
+    <div style="font-size:11px;font-weight:700;color:rgba(29,158,117,.8);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">How are you feeling? 🌿</div>
+    <div class="mood-row" id="mood-chips">
+      <button class="mood-chip" onclick="selectMood(this,'😤 Focused')">😤 Focused</button>
+      <button class="mood-chip" onclick="selectMood(this,'😊 Happy')">😊 Happy</button>
+      <button class="mood-chip" onclick="selectMood(this,'😐 Neutral')">😐 Neutral</button>
+      <button class="mood-chip" onclick="selectMood(this,'😴 Tired')">😴 Tired</button>
+      <button class="mood-chip" onclick="selectMood(this,'😰 Stressed')">😰 Stressed</button>
+      <button class="mood-chip" onclick="selectMood(this,'🔥 Motivated')">🔥 Motivated</button>
+    </div>
+    <textarea class="mood-note-input" id="mood-note" placeholder="Add a note (optional)..." rows="2" maxlength="200"></textarea>
+  </div>
+
   <!-- SCHEDULE -->
   <div class="sched-card">
     <div class="sched-header">
       <span class="sched-title">📅 Scheduled sessions</span>
       <button class="btn" onclick="openSchedModal()" style="background:linear-gradient(135deg,#7F77DD,#534AB7);font-size:11px;padding:5px 12px;flex:none">+ Add schedule</button>
+    </div>
+    <div class="sched-date-chips" id="sched-date-chips">
+      <button class="sched-date-chip active" onclick="setSchedDateFilter('today',this)">Today</button>
+      <button class="sched-date-chip" onclick="setSchedDateFilter('yesterday',this)">Yesterday</button>
+      <button class="sched-date-chip" onclick="setSchedDateFilter('upcoming',this)">Upcoming</button>
+      <button class="sched-date-chip" onclick="setSchedDateFilter('all',this)">All</button>
     </div>
     <div id="sched-list"><p class="empty">No schedules yet — add one above.</p></div>
   </div>
@@ -695,7 +756,11 @@ body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);min
   <div class="sessions-card">
     <div class="sessions-header">
       <span class="sessions-title">Session log</span>
-      <button class="btn btn-del" onclick="clearAll()">✕ Clear all</button>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="view-toggle-btn active" id="view-list-btn" onclick="setSessionView('list',this)" title="List view">☰ List</button>
+        <button class="view-toggle-btn" id="view-card-btn" onclick="setSessionView('card',this)" title="Card view">⊞ Cards</button>
+        <button class="btn btn-del" onclick="clearAll()">✕ Clear all</button>
+      </div>
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
       <button class="filter-chip active" onclick="setFilter('today',this)">Today</button>
@@ -793,7 +858,79 @@ body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);min
 </div>
 
 <script>
-// ── SCHEDULE SYSTEM ──
+// ── MOOD / NOTES ──
+var _selectedMood = '';
+function toggleMoodPanel(){
+  var p=document.getElementById('mood-panel');
+  if(!p)return;
+  p.style.display=p.style.display==='none'||p.style.display===''?'block':'none';
+}
+function selectMood(btn, mood){
+  _selectedMood = mood;
+  document.querySelectorAll('.mood-chip').forEach(c=>c.classList.remove('selected'));
+  btn.classList.add('selected');
+}
+function getMoodNote(){
+  var note=document.getElementById('mood-note');
+  return note?note.value.trim():'';
+}
+function clearMood(){
+  _selectedMood='';
+  document.querySelectorAll('.mood-chip').forEach(c=>c.classList.remove('selected'));
+  var note=document.getElementById('mood-note');
+  if(note)note.value='';
+  var p=document.getElementById('mood-panel');
+  if(p)p.style.display='none';
+}
+
+// ── SCHEDULE DATE FILTER ──
+var _schedDateFilter='today';
+function setSchedDateFilter(f,el){
+  _schedDateFilter=f;
+  document.querySelectorAll('.sched-date-chip').forEach(c=>c.classList.remove('active'));
+  if(el)el.classList.add('active');
+  renderSchedules();
+}
+
+// ── SESSION VIEW TOGGLE ──
+var _sessionView='list';
+function setSessionView(v,el){
+  _sessionView=v;
+  document.querySelectorAll('.view-toggle-btn').forEach(c=>c.classList.remove('active'));
+  if(el)el.classList.add('active');
+  render();
+}
+
+// ── SCHEDULE AUTO-SELECT on subject change ──
+function onSubjectChange(sel){
+  toggleOther(sel);
+  // Highlight matching upcoming schedule
+  highlightMatchingSchedule(sel.value==='Other'?'':sel.value);
+}
+function highlightMatchingSchedule(subj){
+  var arr=loadSchedules();
+  var today=todayKey();
+  var now=new Date();
+  var match=arr.find(function(sc){
+    if(sc.isBreak)return false;
+    if(sc.subject!==subj)return false;
+    if(sc.date!==today)return false;
+    var parts=sc.startTime.split(':');
+    var sdt=new Date();sdt.setHours(parseInt(parts[0]),parseInt(parts[1]),0,0);
+    var edt=new Date(sdt.getTime()+sc.duration*1000);
+    return now<edt; // upcoming or active
+  });
+  var hint=document.getElementById('schedule-hint');
+  if(!hint){hint=document.createElement('div');hint.id='schedule-hint';hint.style.cssText='font-size:10.5px;color:rgba(201,168,76,.9);margin-top:5px;padding:4px 8px;background:rgba(201,168,76,.07);border:1px solid rgba(201,168,76,.2);border-radius:7px;display:none';document.getElementById('subj').parentNode.appendChild(hint);}
+  if(match){
+    hint.style.display='block';
+    hint.textContent='📅 Schedule found: '+match.startTime+' · '+fmtSec(match.duration);
+  } else {
+    hint.style.display='none';
+  }
+}
+
+
 var _schedules=[];
 var _schedTimers={};
 
@@ -910,8 +1047,27 @@ function renderSchedules(){
   var arr=loadSchedules();
   var list=document.getElementById('sched-list');
   if(!arr.length){list.innerHTML='<p class="empty">No schedules yet — add one above.</p>';return;}
-  list.innerHTML=arr.map(function(sc){
-    var status=getSchedStatus(sc);
+
+  // Apply date filter
+  var now=new Date();
+  var td=todayKey();
+  var yest=new Date(now);yest.setDate(yest.getDate()-1);
+  var yKey=yest.getFullYear()+'-'+String(yest.getMonth()+1).padStart(2,'0')+'-'+String(yest.getDate()).padStart(2,'0');
+  var filtered=arr.filter(function(sc){
+    if(_schedDateFilter==='today')return sc.date===td;
+    if(_schedDateFilter==='yesterday')return sc.date===yKey;
+    if(_schedDateFilter==='upcoming'){
+      if(sc.date>td)return true;
+      if(sc.date===td){
+        var p=sc.startTime.split(':');var sdt=new Date();sdt.setHours(parseInt(p[0]),parseInt(p[1]),0,0);
+        return now<new Date(sdt.getTime()+sc.duration*1000);
+      }
+      return false;
+    }
+    return true;
+  });
+  if(!filtered.length){list.innerHTML='<p class="empty">No schedules for this period.</p>';return;}
+  list.innerHTML=filtered.map(function(sc){
     var cdText=status==='upcoming'?getSchedCountdown(sc):null;
     var isToday=sc.date===todayKey();
     var isBreak=sc.isBreak;
@@ -972,30 +1128,93 @@ function renderSchedules(){
 setInterval(renderSchedules,1000);
 renderSchedules();
 
-// Auto-start schedules at their scheduled time (within 60s window)
+// ── AUTO START / STOP SCHEDULES ──
+// Tracks which schedules have been auto-triggered this session
+var _autoStarted={};  // id → true when started
+var _autoStopped={};  // id → true when stopped
+
+function playScheduleAlert(type){
+  // type: 'start' = rising tones, 'stop' = falling tones
+  try{
+    var ctx=new(window.AudioContext||window.webkitAudioContext)();
+    var freqs=type==='start'?[440,550,660,880,1100]:[880,660,550,440,330];
+    freqs.forEach(function(f,i){
+      var o=ctx.createOscillator(),g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      o.type='sine';o.frequency.value=f;
+      var t=ctx.currentTime+i*0.13;
+      g.gain.setValueAtTime(0,t);
+      g.gain.linearRampToValueAtTime(0.22,t+0.02);
+      g.gain.exponentialRampToValueAtTime(0.001,t+0.38);
+      o.start(t);o.stop(t+0.4);
+    });
+  }catch(e){}
+}
+
 setInterval(function(){
   var arr=loadSchedules();
+  var now=new Date();
+  var td=todayKey();
+
   arr.forEach(function(sc){
-    if(sc.date!==todayKey())return;
-    if(sc._autoTriggered)return;
+    if(sc.date!==td)return;
     var parts=sc.startTime.split(':');
     var startDt=new Date();
     startDt.setHours(parseInt(parts[0]),parseInt(parts[1]),0,0);
-    var diff=Math.abs(Date.now()-startDt.getTime());
-    // Within 30s window of start time and page is focused
-    if(diff<30000&&!document.hidden&&!running){
-      sc._autoTriggered=true;
-      // Auto-start the session
-      startScheduledSession(sc);
-      // Show notification toast
-      var t=document.createElement('div');
-      t.style.cssText='position:fixed;top:70px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#1D9E75,#0F6E56);color:#fff;padding:12px 18px;border-radius:10px;font-size:13px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.4);display:flex;align-items:center;gap:8px';
-      t.innerHTML='⏰ <span>Auto-started: <b>'+sc.subject+'</b> — will stop in '+fmtSec(sc.duration)+'</span>';
-      document.body.appendChild(t);
-      setTimeout(()=>t.remove(),6000);
+    var endDt=new Date(startDt.getTime()+sc.duration*1000);
+    var msToStart=startDt-now;
+    var msToEnd=endDt-now;
+
+    // ── AUTO START: within 30s of start time, page visible, not already running ──
+    if(!_autoStarted[sc.id]&&msToStart>-30000&&msToStart<=0&&msToEnd>0&&!document.hidden){
+      _autoStarted[sc.id]=true;
+
+      if(sc.isBreak){
+        // Start break countdown
+        if(typeof startBreak==='function'&&!breakActive){
+          playScheduleAlert('start');
+          startBreak(sc.duration);
+          showAutoToast('☕ Break started — '+Math.floor(sc.duration/60)+'m','#a07040','#c9a84c');
+        }
+      } else {
+        // Start study session
+        if(!running){
+          playScheduleAlert('start');
+          startScheduledSession(sc);
+          showAutoToast('▶ Auto-started: '+sc.subject+' · '+fmtSec(sc.duration),'#0F6E56','#1D9E75');
+        }
+      }
+    }
+
+    // ── AUTO STOP: within 30s after end time, timer still running for this subject ──
+    if(!_autoStopped[sc.id]&&msToEnd<30000&&msToEnd>-30000&&msToEnd<=0){
+      _autoStopped[sc.id]=true;
+
+      if(sc.isBreak){
+        // End break
+        if(typeof breakActive!=='undefined'&&breakActive&&typeof endBreak==='function'){
+          playScheduleAlert('stop');
+          endBreak();
+        }
+      } else {
+        // Save study session if running
+        if(running){
+          playScheduleAlert('stop');
+          saveSession();
+          showAutoToast('⏹ Auto-saved: '+sc.subject,'#0F6E56','#1D9E75');
+        }
+      }
     }
   });
-},10000);
+},5000); // check every 5 seconds
+
+function showAutoToast(msg,c1,c2){
+  var t=document.createElement('div');
+  t.style.cssText='position:fixed;top:70px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,'+c1+','+c2+');color:#fff;padding:11px 20px;border-radius:11px;font-size:13px;font-weight:600;z-index:99999;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.4);display:flex;align-items:center;gap:8px;animation:slideUp2 .3s ease';
+  t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},5000);
+}
 
 // Push existing schedules to Firebase on login
 function syncSchedulesToFirebase(){
@@ -1329,12 +1548,15 @@ function saveSession(){
   localStorage.setItem('st_live_session',JSON.stringify({running:false}));
   var s=getSubject();
   var c=document.getElementById('cat').value;
+  var mood=_selectedMood||'';
+  var note=getMoodNote();
   var sessions=loadSessions();
-  sessions.unshift({id:Date.now(),subject:s,category:c,duration:elapsed,date:todayKey(),time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})});
+  sessions.unshift({id:Date.now(),subject:s,category:c,duration:elapsed,date:todayKey(),time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),mood:mood,note:note});
   saveSessions(sessions);
   elapsed=0;pausedAccum=0;startedAt=0;
   document.getElementById('timer').textContent='00:00:00';
   setStatus('stopped');setBtns('idle');
+  clearMood();
   render();
   checkCelebrate(sessions);
 }
@@ -1460,12 +1682,24 @@ function render(){
   if(summary)summary.textContent=sessions.length?filterLabel(filtered,sessions):'';
   if(!filtered.length){
     list.innerHTML='<p class="empty">'+(sessions.length?'No sessions for this period.':'No sessions yet — press Start above.')+'</p>';
+  } else if(_sessionView==='card'){
+    list.innerHTML='<div class="session-card-grid">'+filtered.map(s=>{
+      var sc=SUBJ_COLORS[s.subject]||'#5F5E5A';
+      return`<div class="sess-card" style="border-color:${sc}30">
+        <span class="sess-card-subj" style="background:${sc}22;border:1px solid ${sc}55;color:${sc}">${s.subject}</span>
+        <div class="sess-card-dur">${fmtSec(s.duration)}</div>
+        <div class="sess-card-cat">${s.category}${s.mood?` · <span style="font-size:11px">${s.mood}</span>`:''}</div>
+        ${s.note?`<div style="font-size:10px;color:rgba(255,255,255,.3);font-style:italic;margin-top:2px">"${s.note}"</div>`:''}
+        <div class="sess-card-meta">${s.date} · ${s.time}</div>
+        <button class="del-btn" onclick="deleteSession(${s.id})" style="align-self:flex-end;margin-top:2px" title="Delete">&times;</button>
+      </div>`;
+    }).join('')+'</div>';
   } else {
     list.innerHTML=filtered.map(s=>`<div class="session-item">
       <span class="badge" style="background:${SUBJ_COLORS[s.subject]||'#5F5E5A'};flex-shrink:0;max-width:90px;overflow:hidden;text-overflow:ellipsis">${s.subject}</span>
       <div class="session-subj">
-        <div class="session-name">${s.category}${s.manual?'<span style="font-size:9px;background:rgba(55,138,221,.2);color:#378ADD;padding:1px 5px;border-radius:4px;margin-left:4px">manual</span>':''}</div>
-        <div class="session-time">${s.date} · ${s.time}</div>
+        <div class="session-name">${s.category}${s.manual?'<span style="font-size:9px;background:rgba(55,138,221,.2);color:#378ADD;padding:1px 5px;border-radius:4px;margin-left:4px">manual</span>':''}${s.mood?`<span style="font-size:10px;margin-left:4px">${s.mood}</span>`:''}</div>
+        <div class="session-time">${s.date} · ${s.time}${s.note?` · <span style="color:rgba(255,255,255,.25);font-style:italic">${s.note}</span>`:''}</div>
       </div>
       <span class="session-dur">${fmtSec(s.duration)}</span>
       <button class="del-btn" onclick="deleteSession(${s.id})" title="Delete">&times;</button>
@@ -1876,19 +2110,54 @@ window.addEventListener('appinstalled',()=>{installBar.style.display='none';});
     window._scType=t;
     document.getElementById('sc-type-study').classList.toggle('sc-type-active',t==='study');
     document.getElementById('sc-type-break').classList.toggle('sc-type-active',t==='break');
-    // Hide unit/category for break
-    var unitRow=document.getElementById('sc-unit');
+    // Show/hide subject, unit, category rows for break
+    var subjSel=document.getElementById('sc-subj');
+    var unitInput=document.getElementById('sc-unit');
     var catSel=document.getElementById('sc-cat');
-    if(unitRow)unitRow.closest('div').style.opacity=t==='break'?'0.3':'1';
-    if(catSel)catSel.style.opacity=t==='break'?'0.3':'1';
+    var unitHint=document.getElementById('sc-unit-hint');
+    var isBreak=t==='break';
+    // Find parent labels and wrap them
+    if(subjSel){
+      var subjWrap=subjSel.closest('.modal')?subjSel.parentNode:subjSel.parentNode;
+      subjSel.style.display=isBreak?'none':'block';
+      // Hide the "Subject" label too
+      var prevSibling=subjSel.previousElementSibling;
+      if(prevSibling&&prevSibling.classList&&prevSibling.classList.contains('modal-label'))
+        prevSibling.style.display=isBreak?'none':'block';
+    }
+    if(unitInput){
+      unitInput.style.display=isBreak?'none':'block';
+      var up=unitInput.previousElementSibling;
+      if(up)up.style.display=isBreak?'none':'block';
+    }
+    if(unitHint)unitHint.style.display=isBreak?'none':'block';
+    if(catSel){
+      catSel.style.display=isBreak?'none':'block';
+      var cp=catSel.previousElementSibling;
+      if(cp&&cp.classList&&cp.classList.contains('modal-label'))cp.style.display=isBreak?'none':'block';
+    }
+    // Show break indicator
+    var bi=document.getElementById('sc-break-indicator');
+    if(!bi){
+      bi=document.createElement('div');
+      bi.id='sc-break-indicator';
+      bi.style.cssText='background:rgba(160,112,64,.15);border:1px solid rgba(201,168,76,.3);border-radius:8px;padding:8px 12px;font-size:12px;color:#c9a84c;text-align:center;margin-bottom:8px';
+      bi.innerHTML='☕ Break — no subject tracking. Timer counts down.';
+      var modal=document.getElementById('sched-modal');
+      if(modal){
+        var subjEl=document.getElementById('sc-subj');
+        if(subjEl)modal.querySelector('.modal').insertBefore(bi,subjEl);
+      }
+    }
+    bi.style.display=isBreak?'block':'none';
   };
   // Reset type on modal open
   var origOpenSched=window.openSchedModal;
   window.openSchedModal=function(){
     window._scType='study';
-    document.getElementById('sc-type-study').classList.add('sc-type-active');
-    document.getElementById('sc-type-break').classList.remove('sc-type-active');
     if(origOpenSched)origOpenSched();
+    // Reset to study mode (shows all fields)
+    setTimeout(function(){window.setScType('study');},10);
   };
 
   // ── Unit hint per subject ──
@@ -1906,6 +2175,7 @@ window.addEventListener('appinstalled',()=>{installBar.style.display='none';});
 
   // ── Break system ──
   var breakInt=null,breakEnd=0,breakActive=false;
+  window.breakActive=false; // expose to global
 
   function playBreakStart(){
     try{var ctx=new(window.AudioContext||window.webkitAudioContext)();[330,392,523].forEach(function(f,i){var o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(0,ctx.currentTime+i*0.14);g.gain.linearRampToValueAtTime(0.15,ctx.currentTime+i*0.14+0.02);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+i*0.14+0.4);o.start(ctx.currentTime+i*0.14);o.stop(ctx.currentTime+i*0.14+0.4);});}catch(e){}
@@ -1916,6 +2186,7 @@ window.addEventListener('appinstalled',()=>{installBar.style.display='none';});
 
   function startBreak(durationSec, onEndCallback){
     breakActive=true;
+    window.breakActive=true;
     breakEnd=Date.now()+durationSec*1000;
     var banner=document.getElementById('break-banner');
     if(banner)banner.classList.add('show');
@@ -1930,8 +2201,11 @@ window.addEventListener('appinstalled',()=>{installBar.style.display='none';});
     },500);
   }
 
+  window.startBreak=startBreak; // expose globally
+
   window.endBreak=function(){
     breakActive=false;
+    window.breakActive=false;
     clearInterval(breakInt);
     var banner=document.getElementById('break-banner');
     if(banner)banner.classList.remove('show');
@@ -1999,24 +2273,6 @@ window.addEventListener('appinstalled',()=>{installBar.style.display='none';});
     }
     if(origStartSched)origStartSched(sc);
   };
-
-  // Auto-trigger break schedules (same interval logic as study)
-  setInterval(function(){
-    var arr=typeof loadSchedules==='function'?loadSchedules():[];
-    arr.forEach(function(sc){
-      if(!sc.isBreak)return;
-      if(sc.date!==todayKey())return;
-      if(sc._breakTriggered)return;
-      var parts=sc.startTime.split(':');
-      var startDt=new Date();
-      startDt.setHours(parseInt(parts[0]),parseInt(parts[1]),0,0);
-      var diff=Math.abs(Date.now()-startDt.getTime());
-      if(diff<30000&&!document.hidden&&!breakActive){
-        sc._breakTriggered=true;
-        startBreak(sc.duration);
-      }
-    });
-  },10000);
 
   // ── Target modal (fix) ──
   window.openTargetModal=function(){
